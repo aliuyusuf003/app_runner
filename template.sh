@@ -1,98 +1,29 @@
 #!/bin/bash
-# Node.js App Deployment Script for Ubuntu
-# Usage: ./deploy.sh {start|stop|restart|status|logs|deploy}
 
-APP_NAME="my-node-app"
-APP_DIR="/var/www/uat_pos/server"
-APP_ENTRY="server.js"   # Change if your main file is app.js, index.js etc.
-NODE_ENV="production"
-LOG_FILE="$APP_DIR/$APP_NAME.log"
-PID_FILE="$APP_DIR/$APP_NAME.pid"
-
-start_app() {
-  if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
-    echo "⚠️ $APP_NAME is already running."
-    exit 1
-  fi
-  echo "🚀 Starting $APP_NAME..."
-  cd "$APP_DIR" || exit
-  NODE_ENV=$NODE_ENV nohup node "$APP_ENTRY" > "$LOG_FILE" 2>&1 &
-  echo $! > "$PID_FILE"
-  echo "✅ $APP_NAME started with PID $(cat $PID_FILE)"
+# Function to perform the backup
+perform_backup() {
+    local timestamp=$(date +%d_%m_%Y)
+    local backup_file="/data/backup/${timestamp}_App.sql"
+    mysqldump --defaults-extra-file=~/.my.cnf posdb > "$backup_file"
 }
 
-stop_app() {
-  if [ ! -f "$PID_FILE" ] || ! kill -0 $(cat "$PID_FILE") 2>/dev/null; then
-    echo "⚠️ $APP_NAME is not running."
-    exit 1
-  fi
-  echo "🛑 Stopping $APP_NAME..."
-  kill -15 $(cat "$PID_FILE")
-  rm -f "$PID_FILE"
-  echo "✅ $APP_NAME stopped."
+# Function to calculate sleep duration until next 11 PM
+calculate_sleep_duration() {
+    local current_time=$(date +%s)
+    local target_time=$(date -d "23:00" +%s)
+    local seconds_in_a_day=86400
+
+    if [ "$current_time" -ge "$target_time" ]; then
+        target_time=$((target_time + seconds_in_a_day))
+    fi
+
+    local sleep_duration=$((target_time - current_time))
+    echo $sleep_duration
 }
 
-restart_app() {
-  echo "🔄 Restarting $APP_NAME..."
-  stop_app
-  start_app
-}
-
-status_app() {
-  if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
-    echo "✅ $APP_NAME is running with PID $(cat $PID_FILE)"
-  else
-    echo "⚠️ $APP_NAME is not running."
-  fi
-}
-
-show_logs() {
-  tail -f "$LOG_FILE"
-}
-
-deploy_app() {
-  echo "📦 Deploying $APP_NAME..."
-  cd "$APP_DIR" || exit
-
-  # Optional: Pull latest code
-  if [ -d ".git" ]; then
-    echo "⬇️ Pulling latest code..."
-    git pull origin main || true
-  fi
-
-  echo "📦 Installing dependencies..."
-  npm install --production
-
-  # Optional: If you have React/Angular/Vue in client folder
-  if [ -d "../client" ]; then
-    echo "⚙️ Building frontend..."
-    cd ../client && npm install && npm run build && cd "$APP_DIR"
-  fi
-
-  restart_app
-}
-
-case "$1" in
-  start)
-    start_app
-    ;;
-  stop)
-    stop_app
-    ;;
-  restart)
-    restart_app
-    ;;
-  status)
-    status_app
-    ;;
-  logs)
-    show_logs
-    ;;
-  deploy)
-    deploy_app
-    ;;
-  *)
-    echo "Usage: $0 {start|stop|restart|status|logs|deploy}"
-    exit 1
-    ;;
-esac
+# Main loop
+while true; do
+    perform_backup
+    sleep_duration=$(calculate_sleep_duration)
+    sleep $sleep_duration
+done
