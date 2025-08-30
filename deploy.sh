@@ -4,7 +4,7 @@
 # Usage: ./deploy.sh {start|stop|restart|status|logs}
 
 APP_NAME="my-node-app"
-APP_DIR="/var/www/uat_pos/server"
+APP_DIR="/var/www/app_pos/server"
 APP_ENTRY="server.js"   # change this to your entry file (e.g., app.js, index.js)
 NODE_ENV="production"
 LOG_FILE="$APP_DIR/$APP_NAME.log"
